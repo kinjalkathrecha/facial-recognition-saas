@@ -7,32 +7,70 @@ import {
   Message,
   Segment
 } from "semantic-ui-react";
+import { MessageHeader } from 'semantic-ui-react'
 import { connect } from "react-redux";
 import { NavLink, Redirect } from "react-router-dom";
-import { authSignup } from "../store/actions/auth";
+import { authSignup as signup } from "../store/actions/auth";
 
 class RegistrationForm extends React.Component {
   state = {
     username: "",
     email: "",
-    password1: "",
-    password2: ""
+    password: "",
+    confirmPassword: "",
+    formError: null
   };
 
   handleSubmit = e => {
     e.preventDefault();
-    const { username, email, password1, password2 } = this.state;
-    this.props.signup(username, email, password1, password2);
+    const { username, email, password, confirmPassword } = this.state;
+    if (
+      username !== "" &&
+      email !== "" &&
+      password !== "" &&
+      confirmPassword !== "" &&
+      this.comparePasswords() === true &&
+      this.comparePasswordLengths() === true
+    )
+      this.props.signup(username, email, password, confirmPassword);
+
   };
 
+  comparePasswords = () => {
+    const { password, confirmPassword } = this.state;
+    if (password !== confirmPassword) {
+      this.setState({ formError: "Your passwords do not match" });
+      return false;
+    } else {
+      return true;
+    }
+  };
+
+  comparePasswordLengths = () => {
+    const { password, confirmPassword } = this.state;
+    if (password.length >= 6 && confirmPassword.length >= 6) {
+      return true;
+    } else {
+      this.setState({
+        formError: "Your password must be a minimum of 6 characters"
+      });
+      return false;
+    }
+  };
+
+
   handleChange = e => {
-    this.setState({ [e.target.name]: e.target.value });
+    this.setState({
+      [e.target.name]: e.target.value,
+      formError: null
+    });
   };
 
   render() {
+    const { formError } = this.state;
+    const { error, loading, authenticated } = this.props;
     const { username, email, password1, password2 } = this.state;
-    const { error, loading, token } = this.props;
-    if (token) {
+    if (authenticated) {
       return <Redirect to="/" />;
     }
     return (
@@ -63,6 +101,7 @@ class RegistrationForm extends React.Component {
                   onChange={this.handleChange}
                   value={email}
                   name="email"
+                  type="email"
                   fluid
                   icon="mail"
                   iconPosition="left"
@@ -72,7 +111,7 @@ class RegistrationForm extends React.Component {
                   onChange={this.handleChange}
                   fluid
                   value={password1}
-                  name="password1"
+                  name="password"
                   icon="lock"
                   iconPosition="left"
                   placeholder="Password"
@@ -82,7 +121,7 @@ class RegistrationForm extends React.Component {
                   onChange={this.handleChange}
                   fluid
                   value={password2}
-                  name="password2"
+                  name="confirmPassword"
                   icon="lock"
                   iconPosition="left"
                   placeholder="Confirm password"
@@ -100,6 +139,18 @@ class RegistrationForm extends React.Component {
                 </Button>
               </Segment>
             </Form>
+            {formError && (
+              <Message negative>
+                <MessageHeader>There was an error</MessageHeader>
+                <p>{formError}</p>
+              </Message>
+            )}
+            {error && (
+              <Message negative>
+                <MessageHeader>There was an error</MessageHeader>
+                <p>{error}</p>
+              </Message>
+            )}
             <Message>
               Already have an account? <NavLink to="/login">Login</NavLink>
             </Message>
@@ -114,14 +165,14 @@ const mapStateToProps = state => {
   return {
     loading: state.auth.loading,
     error: state.auth.error,
-    token: state.auth.token
+    authenticated: state.auth.token !== null
   };
 };
 
 const mapDispatchToProps = dispatch => {
   return {
     signup: (username, email, password1, password2) =>
-      dispatch(authSignup(username, email, password1, password2))
+      dispatch(signup(username, email, password1, password2))
   };
 };
 
