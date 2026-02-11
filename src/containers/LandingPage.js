@@ -47,7 +47,7 @@ const HomepageLayout = () => (
                 <p style={{ fontSize: '1.33em' }}>
                     Test our API for free for the new two weeks. No credit card required.
                 </p>
-                <Link to="/login"><Button positive as='a' size='large'>
+                <Link to="/login"><Button positive size='large'>
                     Start my free trial
                 </Button></Link>
 
@@ -59,7 +59,7 @@ const HomepageLayout = () => (
                 <p style={{ fontSize: '1.33em' }}>
                     Pay for what you use, at $0.05 per request.
                 </p>
-                <Link to="/login"><Button primary as='a' size='large'>
+                <Link to="/login"><Button primary size='large'>
                     Start Now
                 </Button></Link>
             </Container>
@@ -72,17 +72,17 @@ const HomepageLayout = () => (
                         <Grid.Column width={3}>
                             <Header inverted as='h4' content='About' />
                             <List link inverted>
-                                <List.Item as='a'>Sitemap</List.Item>
-                                <List.Item as='a'>Contact Us</List.Item>
+                                <List.Item >Sitemap</List.Item>
+                                <List.Item >Contact Us</List.Item>
 
                             </List>
                         </Grid.Column>
                         <Grid.Column width={3}>
                             <Header inverted as='h4' content='Services' />
                             <List link inverted>
-                                <List.Item as='a'>FAQ</List.Item>
-                                <List.Item as='a'>Pricing</List.Item>
-                                <List.Item as='a'>API</List.Item>
+                                <List.Item >FAQ</List.Item>
+                                <List.Item >Pricing</List.Item>
+                                <List.Item >API</List.Item>
                             </List>
                         </Grid.Column>
                         <Grid.Column width={7}>
