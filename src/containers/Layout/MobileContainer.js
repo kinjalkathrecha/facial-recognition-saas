@@ -98,12 +98,25 @@ class MobileContainer extends Component {
                                         <Icon name='sidebar' />
                                     </Menu.Item>
                                     <Menu.Item position='right'>
-                                        {isAuthenticated ? <Button
-                                            inverted
-                                            onClick={() => this.props.logout()}
-                                        >
-                                            Logout
-                                        </Button> : (
+                                        {isAuthenticated ? (
+                                            <React.Fragment>
+                                                <Button
+                                                    inverted
+                                                    onClick={() => this.props.logout()}
+                                                >
+                                                    Logout
+                                                </Button>
+                                                <Button
+                                                    primary
+                                                    inverted
+                                                    onClick={() =>
+                                                        this.props.history.push("/account/change-email")
+                                                    }
+                                                >
+                                                    Account
+                                                </Button>
+                                            </React.Fragment>
+                                        ) : (
                                             <React.Fragment>
                                                 <Button
                                                     inverted

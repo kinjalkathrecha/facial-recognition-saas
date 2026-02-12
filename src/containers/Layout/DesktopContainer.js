@@ -55,12 +55,25 @@ class DesktopContainer extends Component {
                                     active={this.props.location.pathname === '/demo'}
                                     onClick={() => this.props.history.push("/demo")}>Demo</Menu.Item>
                                 <Menu.Item position='right'>
-                                    {isAuthenticated ? <Button
-                                        inverted={!fixed}
-                                        onClick={() => this.props.logout()}
-                                    >
-                                        Logout
-                                    </Button> : (
+                                    {isAuthenticated ? (
+                                        <React.Fragment>
+                                            <Button
+                                                inverted={!fixed}
+                                                onClick={() => this.props.logout()}
+                                            >
+                                                Logout
+                                            </Button>
+                                            <Button
+                                                primary
+                                                inverted
+                                                onClick={() =>
+                                                    this.props.history.push("/account/change-email")
+                                                }
+                                            >
+                                                Account
+                                            </Button>
+                                        </React.Fragment>
+                                    ) : (
                                         <React.Fragment>
                                             <Button
                                                 inverted={!fixed}

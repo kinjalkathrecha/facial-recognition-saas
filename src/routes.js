@@ -1,12 +1,11 @@
 import React from "react";
-import { Route, Redirect, Switch } from "react-router-dom"; // Cleaned up imports
+import { Route, Redirect, Switch } from "react-router-dom";
 import Hoc from "./hoc/hoc";
 import Login from "./containers/Login";
 import Signup from "./containers/Signup";
 import LandingPage from "./containers/LandingPage";
 import demo from "./containers/demo";
-
-// Added 'return' before the ternary operator
+import ChangeEmail from "./containers/Account/changeEmail";
 const PrivateRoute = ({ component: Component, ...rest }) => {
   const authenticated = localStorage.getItem("token") !== null;
   return (
@@ -28,13 +27,12 @@ const PrivateRoute = ({ component: Component, ...rest }) => {
 
 const BaseRouter = () => (
   <Hoc>
-    {/* It is highly recommended to wrap Routes in a <Switch> to prevent multiple matches */}
     <Switch>
       <Route exact path="/" component={LandingPage} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/demo" component={demo} />
-      <PrivateRoute path="/account" component={LandingPage} />
+      <PrivateRoute path="/account/change-email" component={ChangeEmail} />
     </Switch>
   </Hoc>
 );
