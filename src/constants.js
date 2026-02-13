@@ -12,3 +12,5 @@ export const facialRecognitionURL = `${APIEndpoint}/upload/`;
 export const emailURL = `${APIEndpoint}/email/`;
 export const changeEmailURL = `${APIEndpoint}/change-email/`;
 export const changePasswordURL = `${APIEndpoint}/change-password/`;
+export const billingURL = `${APIEndpoint}/billing/`;
+export const subscribeURL = `${APIEndpoint}/subscribe/`;
