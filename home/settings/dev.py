@@ -17,3 +17,7 @@ DATABASES = {
 CORS_ORIGIN_WHITELIST = (
     'http://localhost:3000',
 )
+
+import os
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_PUBLISH_KEY= os.getenv("STRIPE_PUBLISH_KEY")

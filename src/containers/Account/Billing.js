@@ -59,7 +59,10 @@ class Billing extends React.Component {
                 <Header as='h3'>Monthly Summary</Header>
                 {membershipType === free_trial && (
                     <React.Fragment>
-                        <p>Your free trial ends on {details.endDate || '19 june 2029'}</p>
+                        <p>
+                            Your free trial ends on{" "}
+                            {new Date(details.free_trial_end_date).toDateString()}
+                        </p>
                         <p>API requests this month: {details.apiRequests || 0}</p>
                         <SubscribeForm handleUserDetails={this.handleUserDetails} />
                     </React.Fragment>

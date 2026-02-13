@@ -7,13 +7,22 @@ export const getWidth = () => {
     return isSSR ? Responsive.onlyTablet.minWidth : window.innerWidth;
 };
 
+// 1. Create the instance without the headers first
 export const authAxios = axios.create({
-    baseURL: APIEndpoint,
-    headers: {
-        Authorization: {
-            toString() {
-                return `Token ${localStorage.getItem("token")}`;
-            }
-        }
-    }
+    baseURL: APIEndpoint
 });
+
+// 2. Add a request interceptor
+authAxios.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem("token");
+        if (token) {
+            // Set the header dynamically for every request
+            config.headers.Authorization = `Token ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);

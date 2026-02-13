@@ -78,7 +78,21 @@ export const authSignup = (username, email, password1, password2) => {
         dispatch(checkAuthTimeout(3600));
       })
       .catch(err => {
-        dispatch(authFail(err.response.data.non_field_errors[0]));
+        let errorMsg = "An unexpected error occurred.";
+
+        if (err.response && err.response.data) {
+          // 1. Check for non_field_errors
+          if (err.response.data.non_field_errors) {
+            errorMsg = err.response.data.non_field_errors[0];
+          }
+          // 2. Check for field-specific errors (like password or username)
+          else if (typeof err.response.data === 'object') {
+            const firstKey = Object.keys(err.response.data)[0];
+            errorMsg = `${firstKey}: ${err.response.data[firstKey][0]}`;
+          }
+        }
+
+        dispatch(authFail(errorMsg));
       });
   };
 };
@@ -86,7 +100,7 @@ export const authSignup = (username, email, password1, password2) => {
 export const authCheckState = () => {
   return dispatch => {
     const token = localStorage.getItem("token");
-    if (token === undefined) {
+    if (!token) {
       dispatch(logout());
     } else {
       const expirationDate = new Date(localStorage.getItem("expirationDate"));
