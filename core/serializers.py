@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import File
+from rest_framework.authtoken.models import Token
 class ChangeEmailSerializer(serializers.Serializer):
     email = serializers.EmailField()
     confirm_email = serializers.EmailField()
@@ -13,3 +14,8 @@ class FileSerializer(serializers.ModelSerializer):
     class Meta:
         model=File
         fields="__all__"
+
+class TokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Token
+        fields = ('pk', 'key')

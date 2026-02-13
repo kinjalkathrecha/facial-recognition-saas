@@ -7,7 +7,7 @@ from rest_framework.permissions import AllowAny,IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_200_OK,HTTP_400_BAD_REQUEST
 from .image_detection import detect_faces
-from .serializers import ChangeEmailSerializer,ChangePasswordSerializer,FileSerializer
+from .serializers import ChangeEmailSerializer,ChangePasswordSerializer,FileSerializer ,TokenSerializer
 from .permissions import IsMember
 from .models import TrackedRequest
 User = get_user_model()
@@ -135,3 +135,18 @@ class ImageRecognitionView(APIView):
             recognition = detect_faces(image_path)
             return Response(recognition,status=HTTP_200_OK)
         return Response({"Received incorrect data"},status=HTTP_400_BAD_REQUEST)
+    
+
+class APIKeyView(APIView):
+    permission_classes = (IsAuthenticated, )
+
+    def get(self, request, *args, **kwargs):
+        user = get_user_from_token(request)
+        token_qs = Token.objects.filter(user=user)
+        if token_qs.exists():
+            token_serializer = TokenSerializer(token_qs, many=True)
+            try:
+                return Response(token_serializer.data, status=HTTP_200_OK)
+            except:
+                return Response({"message": "Did not receive correct data"}, status=HTTP_400_BAD_REQUEST)
+        return Response({"message": "User does not exist"}, status=HTTP_400_BAD_REQUEST)

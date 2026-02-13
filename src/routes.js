@@ -8,6 +8,7 @@ import demo from "./containers/demo";
 import ChangeEmail from "./containers/Account/changeEmail";
 import ChangePassword from "./containers/Account/ChangePassword";
 import Billing from './containers/Account/Billing';
+import APIKey from "./containers/Account/APIKey";
 const PrivateRoute = ({ component: Component, ...rest }) => {
   const authenticated = localStorage.getItem("token") !== null;
   return (
@@ -37,6 +38,7 @@ const BaseRouter = () => (
       <PrivateRoute path="/account/change-email" component={ChangeEmail} />
       <PrivateRoute path="/account/change-password" component={ChangePassword} />
       <PrivateRoute path="/account/billing" component={Billing} />
+      <PrivateRoute path="/account/api-key" component={APIKey} />
     </Switch>
   </Hoc>
 );
