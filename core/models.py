@@ -13,6 +13,12 @@ MEMBERSHIP_CHOICES = (
     ('N', 'not_member')
 )
 
+class File(models.Model):
+    file = models.ImageField()
+
+    def __str__(self):
+        return self.file.name
+
 class User(AbstractUser):
     is_member = models.BooleanField(default=False)
     on_free_trial = models.BooleanField(default=True)
