@@ -63,14 +63,14 @@ class Billing extends React.Component {
                             Your free trial ends on{" "}
                             {new Date(details.free_trial_end_date).toDateString()}
                         </p>
-                        <p>API requests this month: {details.apiRequests || 0}</p>
+                        <p>API requests this month: {details.api_request_count}</p>
                         <SubscribeForm handleUserDetails={this.handleUserDetails} />
                     </React.Fragment>
                 )}
                 {membershipType === member && (
                     <React.Fragment>
                         <p>Next billing date: {details.nextBillingDate || '25 june 2029'}</p>
-                        <p>API requests this month: {details.apiRequests || 0}</p>
+                        <p>API requests this month: {details.api_request_count}</p>
                         <p>Amount due: ${details.amountDue || 0}</p>
                     </React.Fragment>
                 )}
