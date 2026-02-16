@@ -54,7 +54,17 @@ export const authLogin = (username, password) => {
         dispatch(checkAuthTimeout(3600));
       })
       .catch(err => {
-        dispatch(authFail(err.response.data.non_field_errors[0]));
+        let errorMsg = "An unexpected error occurred.";
+        if (err.response && err.response.data) {
+          if (err.response.data.non_field_errors) {
+            errorMsg = err.response.data.non_field_errors[0];
+          } else if (typeof err.response.data === 'string') {
+            errorMsg = err.response.data;
+          }
+        } else if (err.message) {
+          errorMsg = err.message;
+        }
+        dispatch(authFail(errorMsg));
       });
   };
 };

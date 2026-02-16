@@ -13,8 +13,12 @@ face_detector = os.path.join(
 def detect_faces(image_path=None, url=None):
     default = {"safely_executed": False}
     if image_path:
-        true_image_path = os.path.join(
-            execution_path, image_path.split('/media/')[1])
+        if '/media/' in image_path:
+            true_image_path = os.path.join(
+                execution_path, image_path.split('/media/')[1])
+        else:
+            # If it's already a relative path or doesn't contain /media/
+            true_image_path = os.path.join(execution_path, os.path.basename(image_path))
         image_to_read = read_image(path=true_image_path)
     elif url:
         image_to_read = read_image(url=url)
