@@ -1,33 +1,63 @@
 import React from "react";
 import {
-    Header,
-    Divider,
     Segment,
+    Header,
     Icon,
     Dimmer,
     Loader,
     Image,
-    Button
+    Button,
+    Modal,
+    Divider
 } from "semantic-ui-react";
 import Shell from "./shell";
-import short_paragraph from '../../assets/images/short_paragraph.png';
 import SubscribeForm from "./SubscribeForm";
+import ShortParagraphIMG from "../../assets/images/short_paragraph.png";
 import { authAxios } from "../../utils";
-import { billingURL } from "../../constants";
+import { billingURL, cancelSubscriptionURL } from "../../constants";
 
 class Billing extends React.Component {
     state = {
         error: null,
         loading: false,
-        billingDetails: null // Changed from {} to null for easier conditional checking
+        billingDetails: {},
+        open: false
     };
 
     componentDidMount() {
         this.handleUserDetails();
     }
 
+    show = size => () => this.setState({ size, open: true });
+
+    close = () => this.setState({ open: false });
+
+    handleUnsubscribe = () => {
+        this.setState({
+            error: null,
+            loading: true
+        });
+        authAxios
+            .post(cancelSubscriptionURL)
+            .then(res => {
+                this.setState({
+                    loading: false
+                });
+                this.close();
+                this.handleUserDetails();
+            })
+            .catch(err => {
+                this.setState({
+                    error: err.response.data.message,
+                    loading: false
+                });
+            });
+    };
+
     handleUserDetails = () => {
-        this.setState({ loading: true, error: null });
+        this.setState({
+            loading: true
+        });
         authAxios
             .get(billingURL)
             .then(res => {
@@ -39,25 +69,19 @@ class Billing extends React.Component {
             .catch(err => {
                 this.setState({
                     loading: false,
-                    // Use optional chaining to prevent the "reading data of undefined" error
-                    error: err.response?.data?.message || "Failed to fetch billing details."
+                    error: err.response.data.message
                 });
             });
     };
 
     renderBillingDetails(details) {
-        // Guard clause: if details is null or hasn't loaded membershipType, show nothing or a loader
-        if (!details || !details.membershipType) return null;
-
-        const { membershipType } = details;
         const free_trial = "free_trial";
         const member = "member";
         const not_member = "not_member";
-
         return (
             <Segment>
-                <Header as='h3'>Monthly Summary</Header>
-                {membershipType === free_trial && (
+                <Header as="h3">Monthly summary</Header>
+                {details.membershipType === free_trial ? (
                     <React.Fragment>
                         <p>
                             Your free trial ends on{" "}
@@ -66,53 +90,70 @@ class Billing extends React.Component {
                         <p>API requests this month: {details.api_request_count}</p>
                         <SubscribeForm handleUserDetails={this.handleUserDetails} />
                     </React.Fragment>
-                )}
-                {membershipType === member && (
+                ) : details.membershipType === member ? (
                     <React.Fragment>
-                        <p>Next billing date: {details.nextBillingDate || '25 june 2029'}</p>
+                        <p>Next billing date: {details.next_billing_date}</p>
                         <p>API requests this month: {details.api_request_count}</p>
                         <p>Amount due: ${details.amount_due}</p>
+                        <Divider />
+                        <Button onClick={this.show("mini")}>Cancel subscription</Button>
                     </React.Fragment>
-                )}
-                {membershipType === not_member && (
+                ) : details.membershipType === not_member ? (
                     <React.Fragment>
                         <p>Your free trial has ended</p>
                         <SubscribeForm handleUserDetails={this.handleUserDetails} />
                     </React.Fragment>
-                )}
+                ) : null}
             </Segment>
         );
     }
 
     render() {
-        const { loading, error, billingDetails } = this.state;
-
+        const { loading, error, billingDetails, open, size } = this.state;
         return (
-            <Shell>
-                {/* Error State */}
-                {error && (
-                    <Segment placeholder>
-                        <Header icon>
-                            <Icon name="warning sign" />
-                            {error}
-                        </Header>
-                        <Button primary onClick={this.handleUserDetails}>Try Again</Button>
-                    </Segment>
-                )}
+            <React.Fragment>
+                <Shell>
+                    {error && (
+                        <Segment placeholder>
+                            <Header icon>
+                                <Icon name="rocket" />
+                                Could not fetch your account details. Try reloading the page
+                            </Header>
+                            <a href="/account/billing/">
+                                <Button primary>Reload</Button>
+                            </a>
+                        </Segment>
+                    )}
+                    {loading && (
+                        <Segment>
+                            <Dimmer active inverted>
+                                <Loader inverted>Detecting faces...</Loader>
+                            </Dimmer>
+                            <Image src={ShortParagraphIMG} />
+                        </Segment>
+                    )}
+                    {billingDetails && this.renderBillingDetails(billingDetails)}
+                </Shell>
 
-                {/* Loading State */}
-                {loading && (
-                    <Segment>
-                        <Dimmer active inverted>
-                            <Loader inverted>Loading billing details...</Loader>
-                        </Dimmer>
-                        <Image src={short_paragraph} />
-                    </Segment>
-                )}
-
-                {/* Data State: Only render if not loading and we have details */}
-                {!loading && billingDetails && this.renderBillingDetails(billingDetails)}
-            </Shell>
+                <Modal size={size} open={open} onClose={this.close}>
+                    <Modal.Header>Cancel Your Subscription</Modal.Header>
+                    <Modal.Content>
+                        <p>Are you sure you want to cancel your subscription?</p>
+                    </Modal.Content>
+                    <Modal.Actions>
+                        <Button onClick={this.close} negative>
+                            No
+                        </Button>
+                        <Button
+                            positive
+                            icon="checkmark"
+                            labelPosition="right"
+                            content="Yes"
+                            onClick={this.handleUnsubscribe}
+                        />
+                    </Modal.Actions>
+                </Modal>
+            </React.Fragment>
         );
     }
 }

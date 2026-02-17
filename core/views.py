@@ -1,66 +1,65 @@
+import stripe
+from stripe import StripeClient
 from django.utils import timezone
 import datetime
-from django.shortcuts import render
-from django.contrib.auth import get_user_model,authenticate
+import math
 from django.conf import settings
+from django.contrib.auth import get_user_model, authenticate
+from django.shortcuts import render
 from rest_framework.authtoken.models import Token
-from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny,IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.status import HTTP_200_OK,HTTP_400_BAD_REQUEST
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
+from rest_framework.views import APIView
 from .image_detection import detect_faces
+from .models import TrackedRequest, Payment
+from .permissions import IsMember
 from .serializers import (
     ChangeEmailSerializer,
     ChangePasswordSerializer,
     FileSerializer,
     TokenSerializer,
     SubscribeSerializer
-    )
-from .permissions import IsMember
-from .models import TrackedRequest,Payment
-import stripe
+)
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
+client = StripeClient(settings.STRIPE_SECRET_KEY)
 User = get_user_model()
-STRIPE_PLAN_ID = settings.STRIPE_PRICE_ID
-stripe.api_key=settings.STRIPE_SECRET_KEY
+STRIPE_PLAN_ID="price_1T1P9gFHM7GWRJu8JtGO6xsD"
+
 def get_user_from_token(request):
-    auth_header = request.META.get("HTTP_AUTHORIZATION")
-    if not auth_header:
-        return None
-    try:
-        parts = auth_header.split(' ')
-        if len(parts) != 2:
-            return None
-        key = parts[1]
-        token = Token.objects.get(key=key)
-        return User.objects.get(id=token.user_id)
-    except (Token.DoesNotExist, User.DoesNotExist):
-        return None
+    key = request.META.get("HTTP_AUTHORIZATION").split(' ')[1]
+    token = Token.objects.get(key=key)
+    user = User.objects.get(id=token.user_id)
+    return user
+
 
 class FileUploadView(APIView):
-    permission_classes=(AllowAny,)
-    def post(self,request,*args,**kwargs):
+    permission_classes = (AllowAny, )
+    throttle_scope = 'demo'
 
-        content_length=request.META.get('CONTENT_LENGTH') #bytes
+    def post(self, request, *args, **kwargs):
+
+        content_length = request.META.get('CONTENT_LENGTH')  # bytes
         if int(content_length) > 5000000:
-            return Response({"message":"Image size is greater that 5MB"},status=HTTP_400_BAD_REQUEST)
+            return Response({"message": "Image size is greater than 5MB"}, status=HTTP_400_BAD_REQUEST)
 
-
-        recognition = {"safely_executed": False, "error_value": "Incorrect data received"}
         file_serializer = FileSerializer(data=request.data)
         if file_serializer.is_valid():
             file_serializer.save()
             image_path = file_serializer.data.get('file')
             recognition = detect_faces(image_path)
-            return Response(recognition, status=HTTP_200_OK)
-        return Response(recognition, status=HTTP_400_BAD_REQUEST)
+        return Response(recognition, status=HTTP_200_OK)
+
 
 class UserEmailView(APIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, )
 
-    def get(self,request,*args,**kwargs):
-        user=get_user_from_token(request)
-        obj={'email':user.email}
-        return Response(obj)    
+    def get(self, request, *args, **kwargs):
+        user = get_user_from_token(request)
+        obj = {'email': user.email}
+        return Response(obj)
+
 
 class ChangeEmailView(APIView):
     permission_classes = (IsAuthenticated, )
@@ -78,6 +77,7 @@ class ChangeEmailView(APIView):
                 return Response({"email": email}, status=HTTP_200_OK)
             return Response({"message": "The emails did not match"}, status=HTTP_400_BAD_REQUEST)
         return Response({"message": "Did not receive the correct data"}, status=HTTP_400_BAD_REQUEST)
+
 
 class ChangePasswordView(APIView):
     permission_classes = (IsAuthenticated, )
@@ -102,142 +102,181 @@ class ChangePasswordView(APIView):
                     return Response({"message": "The passwords did not match"}, status=HTTP_400_BAD_REQUEST)
             return Response({"message": "Incorrect user details"}, status=HTTP_400_BAD_REQUEST)
         return Response({"message": "Did not receive the correct data"}, status=HTTP_400_BAD_REQUEST)
-    
-class UserDetailsView(APIView):
-        permission_classes = (IsAuthenticated, )
 
-        def get(self,request,*args,**kwargs):
-            user = get_user_from_token(request)
-            membership = user.membership
-            today = datetime.datetime.now()
-            month_start = datetime.date(today.year,today.month,1)
-            tracked_request_count = TrackedRequest.objects \
-                .filter(user=user,timestamp__gte=month_start) \
-                .count()
-            obj = {
-                'membershipType' :  membership.get_type_display(),
-                'free_trial_end_date': membership.end_date,
-                'api_request_count' : tracked_request_count
-            }
-            return Response(obj)
+
+class UserDetailsView(APIView):
+    permission_classes = (IsAuthenticated, )
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
         
+        # 1. Safely check if membership exists
+        try:
+            membership = user.membership
+        except AttributeError:
+            # This handles the 'User has no membership' error
+            return Response({"message": "No membership found for this user."}, status=404)
+
+        # 2. Setup your dates with timezone awareness
+        today = timezone.now()
+        month_start = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        
+        # Ensure month_start is aware
+        if timezone.is_naive(month_start):
+            from django.utils.timezone import make_aware
+            month_start = make_aware(month_start)
+
+        tracked_request_count = TrackedRequest.objects \
+            .filter(user=user, timestamp__gte=month_start) \
+            .count()
+            
+        amount_due = 0
+        next_billing_date = membership.end_date
+        
+        # 3. Stripe Logic
+        if user.is_member and user.stripe_customer_id:
+            try:
+                upcoming_invoice = client.invoices.upcoming(
+                    params={"customer": user.stripe_customer_id}
+                )
+                amount_due = upcoming_invoice.amount_due / 100
+            except Exception:
+                amount_due = 0
+
+        obj = {
+            'membershipType': membership.get_type_display() if membership else "None",
+            'free_trial_end_date': membership.end_date if membership else None,
+            'next_billing_date': next_billing_date,
+            'api_request_count': tracked_request_count,
+            'amount_due': amount_due
+        }
+        return Response(obj)
+
 class SubscribeView(APIView):
     permission_classes = (IsAuthenticated, )
 
     def post(self, request, *args, **kwargs):
         user = get_user_from_token(request)
+        # get the user membership
         membership = user.membership
 
         try:
-            # Handle Customer retrieval/creation
-            try:
-                if user.stripe_customer_id:
-                    customer = stripe.Customer.retrieve(user.stripe_customer_id)
-                else:
-                    raise stripe.error.InvalidRequestError("No customer ID", None)
-            except stripe.error.InvalidRequestError as e:
-                if "No such customer" in str(e) or "No customer ID" in str(e):
-                    customer = stripe.Customer.create(email=user.email)
-                    user.stripe_customer_id = customer.id
-                    user.save()
-                else:
-                    raise e
-            
+
+            # get the stripe customer
+            customer = stripe.Customer.retrieve(user.stripe_customer_id)
             serializer = SubscribeSerializer(data=request.data)
-            
+
+            # serialize post data (stripeToken)
             if serializer.is_valid():
+
+                # get stripeToken from serializer data
                 stripe_token = serializer.data.get('stripeToken')
 
-                # Attach payment source
-                stripe.Customer.modify(
-                    customer.id,
-                    source=stripe_token
-                )
-
-                if not STRIPE_PLAN_ID:
-                    return Response({'message': "Configuration Error: STRIPE_PRICE_ID is missing."}, status=HTTP_400_BAD_REQUEST)
-
-                # Create subscription
+                # create the stripe subscription
                 subscription = stripe.Subscription.create(
                     customer=customer.id,
-                    items=[{"price": STRIPE_PLAN_ID}]
+                    items=[{"plan": settings.STRIPE_PLAN_ID}]
                 )
-                
-                # Update membership with timezone-aware datetimes
+
+                # update the membership
                 membership.stripe_subscription_id = subscription.id
+                membership.stripe_subscription_item_id = subscription['items']['data'][0]['id']
                 membership.type = 'M'
-                membership.start_date = timezone.now()
-                
-                # Handle end_date safely from subscription
-                period_end_timestamp = subscription.get('current_period_end')
-                if period_end_timestamp:
-                    membership.end_date = timezone.make_aware(datetime.datetime.fromtimestamp(period_end_timestamp))
-                else:
-                    membership.end_date = timezone.now() + datetime.timedelta(days=30)
-                
+                membership.start_date = datetime.datetime.now()
+                membership.end_date = datetime.datetime.fromtimestamp(
+                    subscription.current_period_end
+                )
                 membership.save()
-                
-                # Update user status
+
+                # update the user
                 user.is_member = True
                 user.on_free_trial = False
                 user.save()
 
-                # Create payment record
+                # create the payment
                 payment = Payment()
-                # Safely get amount from subscription items
-                try:
-                    price_data = subscription['items']['data'][0]['price']
-                    payment.amount = price_data['unit_amount'] / 100
-                except (KeyError, IndexError):
-                    payment.amount = 0 # Fallback
-                
+                payment.amount = subscription.plan.amount / 100
                 payment.user = user
-                payment.timestamp = timezone.now()
                 payment.save()
 
                 return Response({'message': "success"}, status=HTTP_200_OK)
 
             else:
-                return Response({'message': "Incorrect data received", "errors": serializer.errors}, status=HTTP_400_BAD_REQUEST)
+                return Response({'message': "Incorrect data was received"}, status=HTTP_400_BAD_REQUEST)
 
         except stripe.error.CardError as e:
-            print(f"Stripe Card Error: {str(e)}")
-            return Response({'message': f"Your card has been declined: {str(e)}"}, status=HTTP_400_BAD_REQUEST)
+            return Response({'message': "Your card has been declined"}, status=HTTP_400_BAD_REQUEST)
 
         except stripe.error.StripeError as e:
-            print(f"Stripe API Error: {str(e)}")
-            return Response({'message': f"Stripe Error: {str(e)}"}, status=HTTP_400_BAD_REQUEST)
+            return Response({'message': "There was an error. You have not been billed. If this persists please contact support"}, status=HTTP_400_BAD_REQUEST)
 
         except Exception as e:
-            print(f"Unhandled Exception: {str(e)}")
-            return Response({"message": f"Unexpected error: {str(e)}"}, status=HTTP_400_BAD_REQUEST)
+            return Response({"message": "We apologize for the error. We have been informed and are working on the problem."}, status=HTTP_400_BAD_REQUEST)
 
 
-    
+
+class CancelSubscription(APIView):
+    permission_classes = (IsMember, )
+
+    def post(self, request, *args, **kwargs):
+        user = get_user_from_token(request)
+        membership = user.membership
+
+        # update the stripe subscription
+        try:
+            sub = stripe.Subscription.retrieve(
+                membership.stripe_subscription_id)
+            sub.delete()
+        except Exception as e:
+            return Response({"message": "We apologize for the error. We have been informed and are working on the problem."}, status=HTTP_400_BAD_REQUEST)
+
+        # update the user
+        user.is_member = False
+        user.save()
+
+        # update the membership
+        membership.type = "N"
+        membership.save()
+
+        return Response({'message': "Your subscription has been cancelled."}, status=HTTP_200_OK)
+
+
 class ImageRecognitionView(APIView):
-    permission_classes=(IsMember,)
+    permission_classes = (IsMember, )
 
-    def post(self,request,*args,**kwargs):
-        user = request.user
-        file_serializer =FileSerializer(data=request.data)
+    def post(self, request, *args, **kwargs):
+        user = get_user_from_token(request)
+        membership = user.membership
+        file_serializer = FileSerializer(data=request.data)
 
-        # keep track of the requests a user makes
-        tracked_request = TrackedRequest(user=user)
-        tracked_request.endpoint = '/api/image-recognition/'
-        tracked_request.save()
+        usage_record_id = None
+        if user.is_member and not user.on_free_trial:
+            try:
+                # We use stripe.SubscriptionItem (Global) instead of the client object
+                # This bypasses the 'SubscriptionItemService' attribute error
+                usage_record = stripe.SubscriptionItem.create_usage_record(
+                    membership.stripe_subscription_item_id,
+                    quantity=1,
+                    timestamp=math.floor(timezone.now().timestamp()),
+                    action='increment'
+                )
+                usage_record_id = usage_record.id
+                print(f"Usage recorded via Global Method: {usage_record_id}")
+            except Exception as e:
+                print(f"Stripe Global Error: {e}")
 
-        # limit the content length to 5MB
-        content_length=request.META.get('CONTENT_LENGTH') #bytes
-        if int(content_length) > 5000000:
-            return Response({"message":"Image size is greater that 5MB"},status=HTTP_400_BAD_REQUEST)
+        # Track the request in DB
+        TrackedRequest.objects.create(
+            user=user,
+            usage_record_id=usage_record_id,
+            endpoint='/api/image-recognition/'
+        )
 
         if file_serializer.is_valid():
-            file_serializer.save()
-            image_path = file_serializer.data.get('file')
-            recognition = detect_faces(image_path)
+            file_obj = file_serializer.save()
+            recognition = detect_faces(file_obj.file.path)
             return Response(recognition, status=HTTP_200_OK)
-        return Response({"message": "Received incorrect data"}, status=HTTP_400_BAD_REQUEST)
-    
+        return Response({"message": "Incorrect data"}, status=HTTP_400_BAD_REQUEST)
 
 class APIKeyView(APIView):
     permission_classes = (IsAuthenticated, )

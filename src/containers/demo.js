@@ -16,6 +16,7 @@ import {
 import { fileUploadURL, facialRecognitionURL } from '../constants';
 import faceIMG from '../assets/images/face.png';
 import spIMG from '../assets/images/short_paragraph.png';
+import { authAxios } from "../utils";
 class demo extends React.Component {
     state = {
         fileName: "",
@@ -75,7 +76,8 @@ class demo extends React.Component {
             }
         };
         axios
-            .post(fileUploadURL, formData, config)
+            // authAxios
+            .post(fileUploadURL, formData, config) //  facialRecognitionURL
             .then(res => {
                 this.setState({
                     data: res.data,

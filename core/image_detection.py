@@ -10,14 +10,26 @@ face_detector = os.path.join(
     settings.BASE_DIR, "haarcascade_frontalface_default.xml")
 
 
+# Global face detector cache
+_face_cascade = None
+
+def get_face_detector():
+    global _face_cascade
+    if _face_cascade is None:
+        _face_cascade = cv2.CascadeClassifier(face_detector)
+    return _face_cascade
+
+
 def detect_faces(image_path=None, url=None):
     default = {"safely_executed": False}
     if image_path:
-        if '/media/' in image_path:
+        # If it's an absolute path that exists, use it directly
+        if os.path.isabs(image_path) and os.path.exists(image_path):
+            true_image_path = image_path
+        elif '/media/' in image_path:
             true_image_path = os.path.join(
                 execution_path, image_path.split('/media/')[1])
         else:
-            # If it's already a relative path or doesn't contain /media/
             true_image_path = os.path.join(execution_path, os.path.basename(image_path))
         image_to_read = read_image(path=true_image_path)
     elif url:
@@ -25,15 +37,23 @@ def detect_faces(image_path=None, url=None):
     else:
         default["error_value"] = "There is no image provided"
         return default
-    image_to_read = cv2.cvtColor(image_to_read, cv2.COLOR_BGR2GRAY)
-    detector_value = cv2.CascadeClassifier(face_detector)
-    values = detector_value.detectMultiScale(image_to_read,
-                                             scaleFactor=1.1,
-                                             minNeighbors=5,
-                                             minSize=(30, 30),
-                                             flags=cv2.CASCADE_SCALE_IMAGE)
+
+    if image_to_read is None:
+        default["error_value"] = "Could not read image"
+        return default
+
+    image_gray = cv2.cvtColor(image_to_read, cv2.COLOR_BGR2GRAY)
+    detector = get_face_detector()
+    
+    values = detector.detectMultiScale(image_gray,
+                                      scaleFactor=1.1,
+                                      minNeighbors=5,
+                                      minSize=(30, 30),
+                                      flags=cv2.CASCADE_SCALE_IMAGE)
+    
     values = [(int(a), int(b), int(a + c), int(b + d))
               for (a, b, c, d) in values]
+    
     default.update({"number_of_faces": len(values),
                     "faces": values,
                     "safely_executed": True})
