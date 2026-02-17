@@ -82,10 +82,14 @@ def user_logged_in_receiver(sender, user, request, **kwargs):
 
     elif user.is_member:
         sub = stripe.Subscription.retrieve(membership.stripe_subscription_id)
-        if sub.status == "active":
-            membership.end_date = datetime.datetime.fromtimestamp(
-                sub.current_period_end
-            )
+        # Use .get() for safer access as Stripe objects might behave like dicts in some contexts or versions
+        status = sub.get('status', 'active')
+        if status == "active":
+            period_end = sub.get('current_period_end')
+            if period_end:
+                membership.end_date = datetime.datetime.fromtimestamp(
+                    period_end, tz=datetime.timezone.utc
+                )
             user.is_member = True
         else:
             user.is_member = False

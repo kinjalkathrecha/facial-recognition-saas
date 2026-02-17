@@ -23,14 +23,19 @@ def get_face_detector():
 def detect_faces(image_path=None, url=None):
     default = {"safely_executed": False}
     if image_path:
-        # If it's an absolute path that exists, use it directly
+        # Resolve path
         if os.path.isabs(image_path) and os.path.exists(image_path):
             true_image_path = image_path
         elif '/media/' in image_path:
-            true_image_path = os.path.join(
-                execution_path, image_path.split('/media/')[1])
+            relative_path = image_path.split('/media/')[1]
+            true_image_path = os.path.join(execution_path, relative_path)
         else:
             true_image_path = os.path.join(execution_path, os.path.basename(image_path))
+        
+        if not os.path.exists(true_image_path):
+            default["error_value"] = f"File not found: {true_image_path}"
+            return default
+            
         image_to_read = read_image(path=true_image_path)
     elif url:
         image_to_read = read_image(url=url)

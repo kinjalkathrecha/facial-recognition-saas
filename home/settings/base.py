@@ -11,6 +11,11 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key-do-not-use-in
 DEBUG = False
 ALLOWED_HOSTS = []
 
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISH_KEY')
+STRIPE_PLAN_ID = os.getenv('STRIPE_PRICE_ID', 'price_1T1P9gFHM7GWRJu8JtGO6xsD')
+STRIPE_METER_EVENT_NAME = 'facial-saas'
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -97,7 +102,8 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'demo': '3/day',
         'anon': '24/day',
-        'user': '1000/day'
+        'user': '1000/day',
+        'dj_rest_auth': '10/minute'
     }
 }
 CSRF_COOKIE_NAME = "csrftoken"

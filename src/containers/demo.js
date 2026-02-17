@@ -75,9 +75,8 @@ class demo extends React.Component {
                 }
             }
         };
-        axios
-            // authAxios
-            .post(fileUploadURL, formData, config) //  facialRecognitionURL
+        authAxios
+            .post(fileUploadURL, formData, config)
             .then(res => {
                 this.setState({
                     data: res.data,
